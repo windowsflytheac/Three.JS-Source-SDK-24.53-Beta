@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Three.JS: Source 24.53 Beta - Rendering Test</title>
+<title>Three.JS-Source-SDK-24.53-Beta</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #0b0b0b; color: #e0e0e0; font-family: monospace; }
-  #overlay { position: absolute; top: 10px; left: 10px; z-index: 10; }
-  #fps { margin-bottom: 5px; }
-  #console { background: rgba(0,0,0,0.7); padding: 5px; display: none; max-height: 200px; overflow-y: auto; }
-  #input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: none; padding: 5px; }
-  #menu { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(20,20,20,0.95); z-index:20; color:#f0c674; text-align:center; padding-top:100px; font-size:2em;}
-  button { padding: 10px 20px; font-size: 1em; cursor: pointer; margin-top:5px; }
+  body { margin:0; overflow:hidden; background:#0b0b0b; color:#e0e0e0; font-family:monospace; }
+  #overlay { position:absolute; top:10px; left:10px; z-index:10; }
+  #fps { margin-bottom:5px; }
+  #console { background:rgba(0,0,0,0.7); padding:5px; display:none; max-height:200px; overflow-y:auto; }
+  #input { width:100%; box-sizing:border-box; background:#111; color:#fff; border:none; padding:5px; }
+  #menu { display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(20,20,20,0.95); z-index:20; color:#f0c674; text-align:center; padding-top:100px; font-size:2em; }
+  #tv { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; z-index:15; }
+  button { padding:10px 20px; font-size:1em; cursor:pointer; margin-top:5px; }
 </style>
 </head>
 <body>
@@ -22,50 +23,64 @@
   <input type="text" id="input" placeholder="Console Command" />
 </div>
 <div id="menu">PAUSED - PRESS ESC TO RESUME</div>
+<canvas id="tv"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
-<script
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
+
 let scene, camera, renderer;
-let cubes = [], spheres = [];
-let lastFrame = performance.now();
-let fpsDisplay = document.getElementById('fps');
-let consoleDiv = document.getElementById('console');
-let input = document.getElementById('input');
-let sv_cheats = 0;
-let menu = document.getElementById('menu');
-let paused = false;
+let cubes=[], spheres=[];
+let lastFrame=performance.now();
+let fpsDisplay=document.getElementById('fps');
+let consoleDiv=document.getElementById('console');
+let input=document.getElementById('input');
+let sv_cheats=0;
+let menu=document.getElementById('menu');
+let paused=false;
+
+// TV snow overlay
+const tvCanvas=document.getElementById('tv');
+const tvCtx=tvCanvas.getContext('2d');
+tvCanvas.width=window.innerWidth;
+tvCanvas.height=window.innerHeight;
+
+// Generate snow pixels
+function drawTVSnow(){
+    tvCtx.fillStyle='rgba(255,255,255,0.08)';
+    for(let i=0;i<500;i++){
+        let x=Math.random()*tvCanvas.width;
+        let y=Math.random()*tvCanvas.height;
+        tvCtx.fillRect(x,y,1,1);
+    }
+}
 
 // Basic Three.js setup
-function initScene() {
+function initScene(){
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-    camera.position.z = 5;
+    camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,100);
+    camera.position.z=5;
     renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth,window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Lighting
-    const light = new THREE.PointLight(0xffffff, 1);
+    const light=new THREE.PointLight(0xffffff,1);
     light.position.set(5,5,5);
     scene.add(light);
 
-    // Predefined cubes and spheres
     for(let i=0;i<5;i++){
-        const cube = new THREE.Mesh(
+        const cube=new THREE.Mesh(
             new THREE.BoxGeometry(),
-            new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0x330000})
+            new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x330000})
         );
-        cube.position.x = Math.random()*4-2;
-        cube.position.y = Math.random()*4-2;
+        cube.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
         scene.add(cube);
         cubes.push(cube);
 
-        const sphere = new THREE.Mesh(
+        const sphere=new THREE.Mesh(
             new THREE.SphereGeometry(0.5,16,16),
-            new THREE.MeshStandardMaterial({color: 0x00ff00, emissive: 0x003300})
+            new THREE.MeshStandardMaterial({color:0x00ff00,emissive:0x003300})
         );
-        sphere.position.x = Math.random()*4-2;
-        sphere.position.y = Math.random()*4-2;
+        sphere.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
         scene.add(sphere);
         spheres.push(sphere);
     }
@@ -73,88 +88,73 @@ function initScene() {
     animate();
 }
 
-// Simulate broken code
-function buggyFunction() {
-    try {
-        nonexistentFunctionCall(); // this will throw an error
-    } catch(e) {
-        appendConsole("Emily's chaos broke something: " + e.message);
-    }
+// Buggy function to simulate chaos
+function buggyFunction(){
+    try{ nonexistentFunctionCall(); } 
+    catch(e){ appendConsole("Emily's chaos broke something: "+e.message); }
 }
 
-// FPS counter
-function updateFPS() {
-    let now = performance.now();
-    let fps = Math.round(1000 / (now - lastFrame));
-    lastFrame = now;
-    fpsDisplay.textContent = "FPS: " + fps;
+function updateFPS(){
+    let now=performance.now();
+    let fps=Math.round(1000/(now-lastFrame));
+    lastFrame=now;
+    fpsDisplay.textContent="FPS: "+fps;
 }
 
-// Animate cubes and spheres
-function animate() {
+function animate(){
     if(paused) return;
     requestAnimationFrame(animate);
     updateFPS();
 
-    cubes.forEach((c,i)=> {
-        cube = cubes[i];
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-        cube.position.y += Math.sin(performance.now()*0.001+i*0.5)*0.001; // small oscillation
+    // Animate cubes/spheres with glitchy random jitters
+    cubes.forEach((c,i)=>{
+        c.rotation.x+=0.01+Math.random()*0.01;
+        c.rotation.y+=0.01+Math.random()*0.01;
+        c.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
+        c.position.y+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
     });
 
-    spheres.forEach((s,i)=> {
-        sphere = spheres[i];
-        sphere.rotation.y += 0.02;
-        sphere.position.x += Math.sin(performance.now()*0.001+i*0.5)*0.001;
+    spheres.forEach((s,i)=>{
+        s.rotation.y+=0.02+Math.random()*0.01;
+        s.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
+        s.position.y+=Math.cos(performance.now()*0.001+i*0.5)*0.002;
     });
 
-    buggyFunction(); // intentionally broken call
-
-    renderer.render(scene, camera);
+    buggyFunction();
+    renderer.render(scene,camera);
+    drawTVSnow(); // overlay snow
 }
 
-// Console functions
 function appendConsole(text){
-    let p = document.createElement('p');
-    p.textContent = text;
+    let p=document.createElement('p');
+    p.textContent=text;
     consoleDiv.appendChild(p);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    consoleDiv.scrollTop=consoleDiv.scrollHeight;
 }
 
-input.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){
-        let cmd = input.value.trim();
-        input.value = '';
-        appendConsole("> " + cmd);
-        if(cmd === "sv_cheats 1"){
-            sv_cheats = 1;
-            appendConsole("Server char sv_cheats changed to 1");
-        } else if(cmd === "sv_cheats 0"){
-            sv_cheats = 0;
-            appendConsole("Server char sv_cheats changed to 0");
-        } else {
-            appendConsole("Unknown command: " + cmd);
-        }
+input.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'){
+        let cmd=input.value.trim(); input.value='';
+        appendConsole("> "+cmd);
+        if(cmd==="sv_cheats 1"){ sv_cheats=1; appendConsole("Server char sv_cheats changed to 1"); }
+        else if(cmd==="sv_cheats 0"){ sv_cheats=0; appendConsole("Server char sv_cheats changed to 0"); }
+        else appendConsole("Unknown command: "+cmd);
     }
 });
 
-// ESC menu toggle
 document.addEventListener('keydown',(e)=>{
-    if(e.key === 'Escape'){
-        paused = !paused;
-        menu.style.display = paused ? "block" : "none";
+    if(e.key==='Escape'){
+        paused=!paused;
+        menu.style.display=paused?"block":"none";
         if(!paused) animate();
     }
 });
 
-// Start button
-document.getElementById('startBtn').addEventListener('click', ()=>{
+document.getElementById('startBtn').addEventListener('click',()=>{
     initScene();
-    document.getElementById('startBtn').disabled = true;
+    document.getElementById('startBtn').disabled=true;
     appendConsole("Rendering test started. Emily is probably in trouble...");
 });
 </script>
-
 </body>
 </html>

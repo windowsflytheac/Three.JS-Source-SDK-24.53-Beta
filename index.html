@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Three.JS-Source-SDK-24.53-Beta Chaos Edition</title>
+<title>Three.JS-Source-SDK-24.53-Beta Ultimate Chaos</title>
 <style>
 body{margin:0;overflow:hidden;background:#0b0b0b;color:#e0e0e0;font-family:monospace;}
-#overlay{position:absolute;top:10px;left:10px;z-index:10;}
-#fps{margin-bottom:5px;}
-#console{background:rgba(0,0,0,0.7);padding:5px;display:none;max-height:200px;overflow-y:auto;}
-#input{width:100%;box-sizing:border-box;background:#111;color:#fff;border:none;padding:5px;}
-#menu{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(20,20,20,0.95);z-index:20;color:#f0c674;text-align:center;padding-top:100px;font-size:2em;}
-#tv{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;z-index:15;}
+#overlay{position:absolute;top:10px;left:10px;z-index:50;background:rgba(0,0,0,0.5);padding:5px;width:300px;}
+#fps{font-weight:bold;}
+#console{display:block;max-height:200px;overflow-y:auto;font-size:12px;background:rgba(0,0,0,0.7);padding:5px;margin-top:5px;}
+#input{width:100%;margin-top:3px;}
+#menu{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(20,20,20,0.95);z-index:60;color:#f0c674;text-align:center;padding-top:100px;font-size:2em;}
+#tv{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;z-index:40;}
 button{padding:10px 20px;font-size:1em;cursor:pointer;margin-top:5px;}
 </style>
 </head>
@@ -38,21 +38,22 @@ let input=document.getElementById('input');
 let sv_cheats=0;
 let menu=document.getElementById('menu');
 let paused=false;
+
 let tvCanvas=document.getElementById('tv');
 let tvCtx=tvCanvas.getContext('2d');
 tvCanvas.width=window.innerWidth;
 tvCanvas.height=window.innerHeight;
 
-function drawTVSnow(){
+// TV Snow + Scanlines + Flicker
+function drawTV(){
     tvCtx.clearRect(0,0,tvCanvas.width,tvCanvas.height);
-    // Snow
-    tvCtx.fillStyle='rgba(255,255,255,0.08)';
-    for(let i=0;i<800;i++){
+    for(let i=0;i<1000;i++){
         let x=Math.random()*tvCanvas.width;
         let y=Math.random()*tvCanvas.height;
+        tvCtx.fillStyle='rgba(255,255,255,'+(0.05+Math.random()*0.05)+')';
         tvCtx.fillRect(x,y,1,1);
     }
-    // Scanlines
+    // scanlines
     tvCtx.strokeStyle='rgba(255,255,255,0.02)';
     for(let y=0;y<tvCanvas.height;y+=2){
         tvCtx.beginPath();
@@ -62,6 +63,7 @@ function drawTVSnow(){
     }
 }
 
+// Initialize scene
 function initScene(){
     scene=new THREE.Scene();
     camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,100);
@@ -74,8 +76,9 @@ function initScene(){
     light.position.set(5,5,5);
     scene.add(light);
 
+    // Cubes and Spheres
     for(let i=0;i<5;i++){
-        const cube=new THREE.Mesh(
+        let cube=new THREE.Mesh(
             new THREE.BoxGeometry(),
             new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x330000})
         );
@@ -83,7 +86,7 @@ function initScene(){
         scene.add(cube);
         cubes.push(cube);
 
-        const sphere=new THREE.Mesh(
+        let sphere=new THREE.Mesh(
             new THREE.SphereGeometry(0.5,16,16),
             new THREE.MeshStandardMaterial({color:0x00ff00,emissive:0x003300})
         );
@@ -95,11 +98,13 @@ function initScene(){
     animate();
 }
 
+// Chaotic function
 function buggyFunction(){
     try{ nonexistentFunctionCall(); } 
     catch(e){ appendConsole("Emily's chaos broke something: "+e.message); }
 }
 
+// FPS counter
 function updateFPS(){
     let now=performance.now();
     let fps=Math.round(1000/(now-lastFrame));
@@ -107,33 +112,36 @@ function updateFPS(){
     fpsDisplay.textContent="FPS: "+fps;
 }
 
+// Animate
 function animate(){
     if(paused) return;
     requestAnimationFrame(animate);
     updateFPS();
 
-    // Glitch effect on cubes/spheres
+    // Glitches
     cubes.forEach((c,i)=>{
-        c.rotation.x+=0.01+Math.random()*0.02;
-        c.rotation.y+=0.01+Math.random()*0.02;
-        c.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
-        c.position.y+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
-        c.material.emissiveIntensity=1+Math.random()*0.5;
+        c.rotation.x+=0.05*(Math.random()-0.5);
+        c.rotation.y+=0.05*(Math.random()-0.5);
+        c.position.x+=0.05*(Math.random()-0.5);
+        c.position.y+=0.05*(Math.random()-0.5);
+        c.material.color.offsetHSL(0.01*(Math.random()-0.5),0,0);
     });
+
     spheres.forEach((s,i)=>{
-        s.rotation.y+=0.02+Math.random()*0.02;
-        s.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
-        s.position.y+=Math.cos(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
-        s.material.emissiveIntensity=1+Math.random()*0.5;
+        s.rotation.x+=0.05*(Math.random()-0.5);
+        s.rotation.y+=0.05*(Math.random()-0.5);
+        s.position.x+=0.05*(Math.random()-0.5);
+        s.position.y+=0.05*(Math.random()-0.5);
+        s.material.color.offsetHSL(0.01*(Math.random()-0.5),0,0);
     });
 
     // Camera shake
-    camera.position.x=Math.sin(performance.now()*0.002)*0.05;
-    camera.position.y=Math.sin(performance.now()*0.0025)*0.05;
+    camera.position.x=Math.sin(performance.now()*0.003)*0.1;
+    camera.position.y=Math.sin(performance.now()*0.0025)*0.1;
 
     buggyFunction();
     renderer.render(scene,camera);
-    drawTVSnow();
+    drawTV();
 }
 
 // Console logging
@@ -144,7 +152,7 @@ function appendConsole(text){
     consoleDiv.scrollTop=consoleDiv.scrollHeight;
 }
 
-// Console input
+// Input
 input.addEventListener('keydown',(e)=>{
     if(e.key==='Enter'){
         let cmd=input.value.trim(); input.value='';
@@ -155,7 +163,7 @@ input.addEventListener('keydown',(e)=>{
     }
 });
 
-// ESC Menu toggle
+// ESC menu
 document.addEventListener('keydown',(e)=>{
     if(e.key==='Escape'){
         paused=!paused;
@@ -164,6 +172,14 @@ document.addEventListener('keydown',(e)=>{
     }
 });
 
+// Toggle console
+document.addEventListener('keydown',e=>{
+    if(e.key==='`'){ // backtick
+        consoleDiv.style.display = consoleDiv.style.display==='block'?'none':'block';
+    }
+});
+
+// Start
 document.getElementById('startBtn').addEventListener('click',()=>{
     initScene();
     document.getElementById('startBtn').disabled=true;

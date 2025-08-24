@@ -29,38 +29,19 @@ button{padding:10px 20px;font-size:1em;cursor:pointer;margin-top:5px;}
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
 
-let scene,camera,renderer;
-let cubes=[],spheres=[];
-let lastFrame=performance.now();
+let scene, camera, renderer;
+let cubes=[], spheres=[];
 let fpsDisplay=document.getElementById('fps');
 let consoleDiv=document.getElementById('console');
-let input=document.getElementById('input');
-let sv_cheats=0;
-let menu=document.getElementById('menu');
 let paused=false;
+let menu=document.getElementById('menu');
+let chaosCounter = 0;
 
-let tvCanvas=document.getElementById('tv');
-let tvCtx=tvCanvas.getContext('2d');
-tvCanvas.width=window.innerWidth;
-tvCanvas.height=window.innerHeight;
-
-// TV Snow + Scanlines + Flicker
-function drawTV(){
-    tvCtx.clearRect(0,0,tvCanvas.width,tvCanvas.height);
-    for(let i=0;i<1000;i++){
-        let x=Math.random()*tvCanvas.width;
-        let y=Math.random()*tvCanvas.height;
-        tvCtx.fillStyle='rgba(255,255,255,'+(0.05+Math.random()*0.05)+')';
-        tvCtx.fillRect(x,y,1,1);
-    }
-    // scanlines
-    tvCtx.strokeStyle='rgba(255,255,255,0.02)';
-    for(let y=0;y<tvCanvas.height;y+=2){
-        tvCtx.beginPath();
-        tvCtx.moveTo(0,y);
-        tvCtx.lineTo(tvCanvas.width,y);
-        tvCtx.stroke();
-    }
+function appendConsole(text){
+    let p=document.createElement('p');
+    p.textContent=text;
+    consoleDiv.appendChild(p);
+    consoleDiv.scrollTop=consoleDiv.scrollHeight;
 }
 
 // Initialize scene
@@ -76,115 +57,79 @@ function initScene(){
     light.position.set(5,5,5);
     scene.add(light);
 
-    // Cubes and Spheres
+    // Chaos cubes & spheres
     for(let i=0;i<5;i++){
-        let cube=new THREE.Mesh(
-            new THREE.BoxGeometry(),
-            new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x330000})
-        );
-        cube.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
-        scene.add(cube);
-        cubes.push(cube);
+        let cube=new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x330000}));
+        cube.position.set(Math.random()*4-2, Math.random()*4-2, Math.random()*4-2);
+        scene.add(cube); cubes.push(cube);
 
-        let sphere=new THREE.Mesh(
-            new THREE.SphereGeometry(0.5,16,16),
-            new THREE.MeshStandardMaterial({color:0x00ff00,emissive:0x003300})
-        );
-        sphere.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
-        scene.add(sphere);
-        spheres.push(sphere);
+        let sphere=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,16), new THREE.MeshStandardMaterial({color:0x00ff00,emissive:0x003300}));
+        sphere.position.set(Math.random()*4-2, Math.random()*4-2, Math.random()*4-2);
+        scene.add(sphere); spheres.push(sphere);
     }
 
+    // Blocky GLaDOS
+    let glados = new THREE.Group();
+
+    // Eye
+    let eye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3,16,16),
+        new THREE.MeshStandardMaterial({color:0xffff00, emissive:0x333300})
+    );
+    eye.position.set(0,1.5,0);
+    glados.add(eye);
+
+    // Body - stacked cubes
+    for(let y=0; y<3; y++){
+        let block = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5,0.5,0.5),
+            new THREE.MeshStandardMaterial({color:0x666666})
+        );
+        block.position.set(0, y*0.5,0);
+        glados.add(block);
+    }
+
+    glados.position.set(0,0,0);
+    scene.add(glados);
+
+    // Animate
+    function animate(){
+        if(paused) return;
+        requestAnimationFrame(animate);
+
+        // FPS counter
+        fpsDisplay.textContent="FPS: "+Math.round(1000/performance.now());
+
+        // Chaotic cube/sphere movement
+        cubes.forEach(c=>{
+            c.rotation.x+=0.05*(Math.random()-0.5);
+            c.rotation.y+=0.05*(Math.random()-0.5);
+            c.position.x+=0.05*(Math.random()-0.5);
+            c.position.y+=0.05*(Math.random()-0.5);
+        });
+        spheres.forEach(s=>{
+            s.rotation.x+=0.05*(Math.random()-0.5);
+            s.rotation.y+=0.05*(Math.random()-0.5);
+            s.position.x+=0.05*(Math.random()-0.5);
+            s.position.y+=0.05*(Math.random()-0.5);
+        });
+
+        // Eye follows camera horizontally
+        eye.position.x = THREE.MathUtils.lerp(eye.position.x, camera.position.x*0.2, 0.05);
+
+        renderer.render(scene,camera);
+    }
     animate();
 }
 
-// Chaotic function
-function buggyFunction(){
-    try{ nonexistentFunctionCall(); } 
-    catch(e){ appendConsole("Emily's chaos broke something: "+e.message); }
-}
-
-// FPS counter
-function updateFPS(){
-    let now=performance.now();
-    let fps=Math.round(1000/(now-lastFrame));
-    lastFrame=now;
-    fpsDisplay.textContent="FPS: "+fps;
-}
-
-// Animate
-function animate(){
-    if(paused) return;
-    requestAnimationFrame(animate);
-    updateFPS();
-
-    // Glitches
-    cubes.forEach((c,i)=>{
-        c.rotation.x+=0.05*(Math.random()-0.5);
-        c.rotation.y+=0.05*(Math.random()-0.5);
-        c.position.x+=0.05*(Math.random()-0.5);
-        c.position.y+=0.05*(Math.random()-0.5);
-        c.material.color.offsetHSL(0.01*(Math.random()-0.5),0,0);
-    });
-
-    spheres.forEach((s,i)=>{
-        s.rotation.x+=0.05*(Math.random()-0.5);
-        s.rotation.y+=0.05*(Math.random()-0.5);
-        s.position.x+=0.05*(Math.random()-0.5);
-        s.position.y+=0.05*(Math.random()-0.5);
-        s.material.color.offsetHSL(0.01*(Math.random()-0.5),0,0);
-    });
-
-    // Camera shake
-    camera.position.x=Math.sin(performance.now()*0.003)*0.1;
-    camera.position.y=Math.sin(performance.now()*0.0025)*0.1;
-
-    buggyFunction();
-    renderer.render(scene,camera);
-    drawTV();
-}
-
-// Console logging
-function appendConsole(text){
-    let p=document.createElement('p');
-    p.textContent=text;
-    consoleDiv.appendChild(p);
-    consoleDiv.scrollTop=consoleDiv.scrollHeight;
-}
-
-// Input
-input.addEventListener('keydown',(e)=>{
-    if(e.key==='Enter'){
-        let cmd=input.value.trim(); input.value='';
-        appendConsole("> "+cmd);
-        if(cmd==="sv_cheats 1"){ sv_cheats=1; appendConsole("Server char sv_cheats changed to 1"); }
-        else if(cmd==="sv_cheats 0"){ sv_cheats=0; appendConsole("Server char sv_cheats changed to 0"); }
-        else appendConsole("Unknown command: "+cmd);
-    }
-});
-
 // ESC menu
 document.addEventListener('keydown',(e)=>{
-    if(e.key==='Escape'){
-        paused=!paused;
-        menu.style.display=paused?"block":"none";
-        if(!paused) animate();
-    }
+    if(e.key==='Escape'){ paused=!paused; menu.style.display=paused?"block":"none"; if(!paused)initScene();}
 });
 
-// Toggle console
-document.addEventListener('keydown',e=>{
-    if(e.key==='`'){ // backtick
-        consoleDiv.style.display = consoleDiv.style.display==='block'?'none':'block';
-    }
-});
-
-// Start
 document.getElementById('startBtn').addEventListener('click',()=>{
     initScene();
-    document.getElementById('startBtn').disabled=true;
     appendConsole("Rendering test started. Emily is probably in trouble...");
+    document.getElementById('startBtn').disabled=true;
 });
 </script>
-</body>
-</html>

@@ -4,179 +4,202 @@
 <meta charset="UTF-8">
 <title>Three.JS: Source 24.53 Beta</title>
 <style>
-body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
-#menu { position:absolute; top:0; left:0; right:0; text-align:center; color:white; background:rgba(0,0,0,0.7); display:none; padding:10px; z-index:1000; }
-#fps { position:absolute; top:0; right:0; color:white; padding:5px; z-index:1000; font-family:monospace; }
-#subtitle { position:absolute; bottom:10%; width:100%; text-align:center; color:#ff0; font-size:24px; font-family:monospace; text-shadow:1px 1px 2px #000; }
-#selector { position:absolute; top:50px; left:10px; color:white; z-index:1000; }
-button { display:block; margin:5px 0; }
+  body { margin: 0; overflow: hidden; background: black; font-family: sans-serif; }
+  #fps { position: absolute; top: 5px; left: 5px; color: #0f0; font-size: 16px; }
+  #subtitles { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 20px; }
+  #menu { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+          background: rgba(0,0,0,0.8); color: #fff; font-size: 30px; text-align: center; line-height: 100vh; }
+  #chat { position: absolute; right: 5px; bottom: 5px; width: 300px; height: 200px; 
+          background: rgba(0,0,0,0.5); color: #0f0; font-size: 12px; overflow-y: auto; padding: 5px; }
 </style>
 </head>
 <body>
-<div id="menu">PAUSED - PRESS ESC TO RESUME</div>
 <div id="fps">FPS: 0</div>
-<div id="subtitle"></div>
-<div id="selector">
-  <button onclick="switchScene('renderTest')">Rendering Test</button>
-  <button onclick="switchScene('seriousRoom')">Serious Room</button>
-</div>
-
+<div id="subtitles"></div>
+<div id="menu">PAUSED - PRESS ESC TO RESUME</div>
+<div id="chat"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
+let scene, camera, renderer, clock;
+let keys = {};
+let heldObject = null;
+let fpsCounter = document.getElementById('fps');
+let subtitles = document.getElementById('subtitles');
+let chat = document.getElementById('chat');
+let menu = document.getElementById('menu');
+let paused = false;
+let cheats = 0;
+
+// Setup scene
+scene = new THREE.Scene();
+
+// Skybox placeholder
+scene.background = new THREE.Color(0x202040);
+
+// Camera
+camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 2, 5);
+
+// Renderer
+renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const clock = new THREE.Clock();
-const menu = document.getElementById('menu');
-const fpsCounter = document.getElementById('fps');
-const subtitle = document.getElementById('subtitle');
-
-let keys = {};
-let heldObject = null;
-
-document.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
-document.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
-
-function logConsole(text){ console.log(text); }
-function showSubtitle(text){ subtitle.innerText=text; setTimeout(()=>{subtitle.innerText='';},1500); }
-
-const scenes = {};
-
-// --- Rendering Test Scene ---
-scenes.renderTest = function(){
-    scene.children = [];
-    const ambient = new THREE.AmbientLight(0x333333);
-    scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    dirLight.position.set(5,10,7);
-    scene.add(dirLight);
-
-    // Placeholder cubes/spheres/glow moving
-    for(let i=0;i<10;i++){
-        const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:Math.random()*0xffffff, emissive:Math.random()*0xffffff, emissiveIntensity:0.5}));
-        cube.position.set((Math.random()-0.5)*10,0.5,(Math.random()-0.5)*10);
-        cube.userData = {velocity:new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5)};
-        scene.add(cube);
-    }
-    for(let i=0;i<5;i++){
-        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5,16,16), new THREE.MeshStandardMaterial({color:Math.random()*0xffffff, emissive:Math.random()*0xffffff, emissiveIntensity:0.5}));
-        sphere.position.set((Math.random()-0.5)*10,0.5,(Math.random()-0.5)*10);
-        scene.add(sphere);
-    }
-
-    // Blocky GLaDOS placeholder
-    const glados = new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color:0xffff00, emissive:0xffff00, emissiveIntensity:0.8}));
-    glados.position.set(0,1,0);
-    scene.add(glados);
-
-    // TV glitch plane
-    const tvGeo = new THREE.PlaneGeometry(5,3);
-    const tvMat = new THREE.MeshBasicMaterial({color:0xffffff});
-    const tv = new THREE.Mesh(tvGeo, tvMat);
-    tv.position.set(0,1.5,-4);
-    scene.add(tv);
-
-    logConsole("Rendering Test loaded. Emily is probably in trouble...");
-};
-
-// --- Serious Room Scene ---
-scenes.seriousRoom = function() {
-    scene.children = [];
-    const floorSR = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshStandardMaterial({color:0x222222}));
-    floorSR.rotation.x = -Math.PI/2; scene.add(floorSR);
-
-    const walls = new THREE.Mesh(new THREE.BoxGeometry(6,3,6), new THREE.MeshStandardMaterial({color:0x111111, side:THREE.BackSide}));
-    walls.position.y = 1.5; scene.add(walls);
-
-    const spot = new THREE.SpotLight(0xffffff,1.5);
-    spot.position.set(0,3,0); spot.angle=Math.PI/6; spot.penumbra=0.3; scene.add(spot);
-
-    const amb = new THREE.AmbientLight(0x222222); scene.add(amb);
-
-    // Placeholder cube
-    const placeholderCube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:0xff0000}));
-    placeholderCube.position.set(0,0.5,0); scene.add(placeholderCube);
-
-    logConsole("Serious Room loaded. Everything is extremely serious…");
-};
-
-// Scene switcher
-function switchScene(name){ if(scenes[name]) scenes[name](); }
+// Clock
+clock = new THREE.Clock();
 
 // Floor
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshStandardMaterial({color:0x444444}));
-floor.rotation.x=-Math.PI/2; scene.add(floor);
+let floorGeo = new THREE.PlaneGeometry(100, 100);
+let floorMat = new THREE.MeshStandardMaterial({color:0x444444});
+let floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
 
-// Camera
-camera.position.set(0,1.6,5);
+// Light
+let light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 10, 10);
+scene.add(light);
 
-// Animate
+// Placeholder cubes and spheres
+let cubes = [];
+let spheres = [];
+for(let i=0;i<10;i++){
+    let cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({color:0xff0000}));
+    cube.position.set(Math.random()*10-5,0.5,Math.random()*10-5);
+    scene.add(cube);
+    cubes.push(cube);
+
+    let sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5,16,16), new THREE.MeshStandardMaterial({color:0x00ff00}));
+    sphere.position.set(Math.random()*10-5,0.5,Math.random()*10-5);
+    scene.add(sphere);
+    spheres.push(sphere);
+}
+
+// Blocky GLaDOS placeholder
+let glados = new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color:0xffff00}));
+glados.position.set(0,2,-5);
+scene.add(glados);
+
+// Serious Room placeholder
+let room = new THREE.Mesh(new THREE.BoxGeometry(20,10,20), new THREE.MeshStandardMaterial({color:0x666666, side: THREE.BackSide}));
+room.position.y=5;
+scene.add(room);
+
+// Drivable car placeholder
+let car = new THREE.Mesh(new THREE.BoxGeometry(2,1,4), new THREE.MeshStandardMaterial({color:0x0000ff}));
+car.position.set(5,0.5,0);
+scene.add(car);
+let drivingCar=false;
+
+// Movement variables
+let velocity = new THREE.Vector3();
+let speed = 5;
+let jumpSpeed = 5;
+let gravity = -9.8;
+let onGround = true;
+
+// Controls
+document.addEventListener('keydown', (e)=>{ keys[e.key.toLowerCase()]=true; if(e.key==='Escape') togglePause(); });
+document.addEventListener('keyup', (e)=>{ keys[e.key.toLowerCase()]=false; });
+window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function togglePause(){
+    paused = !paused;
+    menu.style.display = paused?'block':'none';
+}
+
+// Interaction
+document.addEventListener('keydown', (e)=>{
+    if(e.key.toLowerCase()==='e'){
+        if(!heldObject){
+            // Pick nearest object
+            let nearest = null;
+            let minDist = 2;
+            [...cubes,...spheres].forEach(obj=>{
+                if(obj.position.distanceTo(camera.position)<minDist){ nearest=obj; minDist=obj.position.distanceTo(camera.position); }
+            });
+            if(nearest){ heldObject=nearest; addChat(`Picked up object`); subtitles.textContent=''; } 
+            else subtitles.textContent="Can't Use";
+        } else {
+            heldObject=null;
+        }
+    }
+    if(e.key.toLowerCase()==='q'){
+        addChat("Spawn Menu opened (placeholder)");
+    }
+});
+
+// Console cheats placeholder
+function runCommand(cmd){
+    if(cmd.startsWith("sv_cheats")){
+        cheats = parseInt(cmd.split(' ')[1]);
+        addChat(`Server char sv_cheats changed to ${cheats}`);
+    } else addChat("Unknown command");
+}
+
+// Chat helper
+function addChat(msg){
+    let div = document.createElement('div');
+    div.textContent=msg;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// Animation loop
 function animate(){
     requestAnimationFrame(animate);
-    const dt = clock.getDelta();
-    fpsCounter.innerText = "FPS: "+(1/dt).toFixed(0);
+    let dt = clock.getDelta();
 
-    // Movement
-    const speed = 5;
-    let forward=(keys['w']?-1:0)+(keys['s']?1:0);
-    let right=(keys['a']?-1:0)+(keys['d']?1:0);
-    camera.position.y+=keys[' ']?5*dt:0;
+    if(!paused){
+        // Movement
+        let forward=(keys['w']?1:0)+(keys['s']?-1:0);
+        let right=(keys['a']?-1:0)+(keys['d']?1:0);
+        let dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        dir.y=0; dir.normalize();
+        let rightVec = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
 
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    dir.y=0; dir.normalize();
-    camera.position.add(dir.clone().multiplyScalar(forward*speed*dt));
-    const rightDir = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
-    camera.position.add(rightDir.multiplyScalar(right*speed*dt));
+        velocity.x = (dir.x*forward + rightVec.x*right)*speed;
+        velocity.z = (dir.z*forward + rightVec.z*right)*speed;
 
-    // Update cubes movement
-    scene.traverse(obj=>{
-        if(obj.userData.velocity){
-            obj.position.add(obj.userData.velocity.clone().multiplyScalar(dt));
+        // Jump
+        if(keys[' ']){ if(onGround){ velocity.y=jumpSpeed; onGround=false; } }
+
+        velocity.y += gravity*dt;
+        camera.position.addScaledVector(velocity, dt);
+
+        if(camera.position.y<2){ camera.position.y=2; velocity.y=0; onGround=true; }
+
+        // Held object follow camera
+        if(heldObject){
+            let holdPos = camera.position.clone().add(dir.clone().multiplyScalar(2));
+            heldObject.position.lerp(holdPos, 0.2);
         }
-    });
 
-    // Update held object
-    if(heldObject){
-        const holdPos = camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(2));
-        heldObject.position.lerp(holdPos,0.2);
+        // Car driving
+        if(keys['f']) drivingCar=!drivingCar;
+        if(drivingCar){
+            let forwardCar = keys['w']?0.1:keys['s']?-0.1:0;
+            car.position.add(new THREE.Vector3(0,0,forwardCar));
+        }
+
+        // Chaos cubes rotation
+        cubes.forEach(c=>c.rotation.x+=dt; c.rotation.y+=dt);
+        spheres.forEach(s=>s.rotation.y+=dt);
+
+        // FPS
+        fpsCounter.textContent=`FPS: ${Math.round(1/dt)}`;
     }
 
     renderer.render(scene,camera);
 }
 animate();
 
-// Interactions
-document.addEventListener('keydown', e=>{
-    if(e.key==='e'){
-        if(heldObject){
-            showSubtitle("Dropped object");
-            heldObject = null;
-        }else{
-            // pick nearest cube
-            let nearest=null,dist=5;
-            scene.traverse(obj=>{
-                if(obj instanceof THREE.Mesh && obj.geometry instanceof THREE.BoxGeometry){
-                    const d=obj.position.distanceTo(camera.position);
-                    if(d<dist){ nearest=obj; dist=d; }
-                }
-            });
-            if(nearest){ heldObject=nearest; showSubtitle("Picked up placeholder object"); }
-            else showSubtitle("Can't Use");
-        }
-    }
-    if(e.key==='q') showSubtitle("Spawn Menu Opened (placeholder)");
-    if(e.key==='Escape') menu.style.display = menu.style.display==='none'?'block':'none';
-    if(e.key==='1'){ logConsole("Server char sv_cheats changed to 1"); showSubtitle("sv_cheats set to 1"); }
-    if(e.key==='0'){ logConsole("Server char sv_cheats changed to 0"); showSubtitle("sv_cheats set to 0"); }
-});
-
-// Start with Rendering Test
-switchScene('renderTest');
 </script>
 </body>
 </html>

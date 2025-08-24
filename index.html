@@ -1,135 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Three.JS: Source 24.53 Beta - Aperture Science Report</title>
-  <style>
-    body {
-      background-color: #0b0b0b;
-      color: #e0e0e0;
-      font-family: "Courier New", Courier, monospace;
-      line-height: 1.6;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: #1a1a1a;
-      padding: 20px;
-      text-align: center;
-      border-bottom: 2px solid #444;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 2em;
-      color: #f0c674;
-    }
-    header p {
-      color: #a0a0a0;
-      font-style: italic;
-      margin-top: 5px;
-    }
-    main {
-      padding: 20px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    h2, h3 {
-      color: #f0c674;
-      margin-top: 1.2em;
-    }
-    .quote {
-      color: #ff5c5c;
-      font-weight: bold;
-      margin: 10px 0;
-    }
-    .personnel {
-      background-color: #1f1f1f;
-      padding: 15px;
-      border-left: 5px solid #f0c674;
-      margin-bottom: 15px;
-    }
-    .warning {
-      color: #ff5c5c;
-      font-weight: bold;
-    }
-    footer {
-      text-align: center;
-      color: #a0a0a0;
-      margin: 40px 0 20px 0;
-      font-size: 0.9em;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Three.JS: Source 24.53 Beta - Rendering Test</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #0b0b0b; color: #e0e0e0; font-family: monospace; }
+  #overlay { position: absolute; top: 10px; left: 10px; z-index: 10; }
+  #fps { margin-bottom: 5px; }
+  #console { background: rgba(0,0,0,0.7); padding: 5px; display: none; max-height: 200px; overflow-y: auto; }
+  #input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: none; padding: 5px; }
+  #menu { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(20,20,20,0.95); z-index:20; color:#f0c674; text-align:center; padding-top:100px; font-size:2em;}
+  button { padding: 10px 20px; font-size: 1em; cursor: pointer; margin-top:5px; }
+</style>
 </head>
 <body>
 
-<header>
-  <h1>Three.JS: Source 24.53 Beta</h1>
-  <p>Internal Aperture Science Experimental Report</p>
-</header>
-
-<main>
-
-<h2>Project Status</h2>
-<p>Experimental, beta, highly volatile. Authorized personnel only.</p>
-
-<h2>Responsible Personnel</h2>
-<div class="personnel">
-  <h3>Emily Johnson - Co-CEO</h3>
-  <p>Age 21, emotionally sensitive, frequently in trouble, has been with the cops due to bad choices and doesn’t care about them. Often shouts <span class="quote">"God Damn it Jerry!"</span> when experiments go awry. Responsible for ethics and documentation, though often overwhelmed by chaos.</p>
+<div id="overlay">
+  <button id="startBtn">START RENDERING TEST</button>
+  <div id="fps">FPS: 0</div>
+  <div id="console"></div>
+  <input type="text" id="input" placeholder="Console Command" />
 </div>
-<div class="personnel">
-  <h3>Cave Johnson - CEO & Founder</h3>
-  <p>Reckless visionary, inventor of numerous Aperture devices. Constantly pushes experimental boundaries, often dragging Emily Johnson into chaos for “scientific insight.”</p>
-</div>
-<div class="personnel">
-  <h3>Jerry Johnson - Former Director</h3>
-  <p>Exasperatingly competent, primary instigator of Emily’s outbursts, occasionally tries to mediate experiments but usually causes more trouble.</p>
-</div>
-<div class="personnel">
-  <h3>Caroline Johnson - Backbone of Aperture Science</h3>
-  <p>Steadfast and unflappable, maintains operational integrity and prevents catastrophic system failure. Often the only calming influence during portal emergencies.</p>
-</div>
+<div id="menu">PAUSED - PRESS ESC TO RESUME</div>
 
-<h2>Key Features & Objectives</h2>
-<ul>
-  <li>Render and interact with cubes, spheres, buttons, and portals in full Aperture-grade physics.</li>
-  <li>Simulate experimental test chambers with potential hazards and AI unpredictability.</li>
-  <li>Monitor portal-induced anomalies and environmental instabilities.</li>
-  <li>Experience executive oversight and emotional stress testing of sensitive personnel.</li>
-</ul>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script>
+let scene, camera, renderer;
+let cubes = [], spheres = [];
+let lastFrame = performance.now();
+let fpsDisplay = document.getElementById('fps');
+let consoleDiv = document.getElementById('console');
+let input = document.getElementById('input');
+let sv_cheats = 0;
+let menu = document.getElementById('menu');
+let paused = false;
 
-<h2>Known Risks & Warnings</h2>
-<ul>
-  <li class="warning">Emotional Hazard:</li>
-  <p>Expect frequent shouting of <span class="quote">"God Damn it Jerry!"</span> from Emily Johnson during misaligned AI, test chamber collapse, or portal misuse.</p>
-  <li class="warning">Structural Instability:</li>
-  <p>Test chambers may suffer from minor to severe portal-induced spatial distortion.</p>
-  <li class="warning">Cube & Sphere Hazard:</li>
-  <p>Weighted Companion Cubes, Spheres, and other devices may misbehave, causing impact events.</p>
-  <li class="warning">AI Misbehavior:</li>
-  <p>Simulated AI may act unpredictably, occasionally requiring intervention by Caroline Johnson or further distress to Emily Johnson.</p>
-  <li class="warning">Cave Johnson Experiments:</li>
-  <p>Expect reckless actions, sudden explosions, and inventive “progress.” Emily Johnson is often caught in the middle.</p>
-</ul>
+// Basic Three.js setup
+function initScene() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.z = 5;
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-<h2>Operational Protocols</h2>
-<ul>
-  <li>Preserve this license and attribution to the executive team.</li>
-  <li>Include warnings for emotional stress, AI unpredictability, and portal chaos when modifying or extending the project.</li>
-  <li>Unauthorized commercial use, cloning, AI replication, or interdimensional testing is prohibited.</li>
-  <li>Participation in Aperture Science beta testing is mandatory. Cake is optional. Emotional distress is inevitable.</li>
-</ul>
+    // Lighting
+    const light = new THREE.PointLight(0xffffff, 1);
+    light.position.set(5,5,5);
+    scene.add(light);
 
-<h2>Conclusion</h2>
-<p>By using this repository, you acknowledge that Emily Johnson will continue to be <span class="quote">in trouble</span>, shouting <span class="quote">"God Damn it Jerry!"</span> at high frequency. Cave Johnson, Jerry Johnson, and Caroline Johnson will continue to enact unpredictable, chaotic, and occasionally dangerous experimental procedures. You, as a participant, are now part of the official Aperture Science internal beta testing program.</p>
-<p class="warning">Final Reminder: Press cubes, activate portals, survive AI mischief, embrace chaos, testing is mandatory, cake is not guaranteed, and Emily Johnson’s rebellious antics are unavoidable.</p>
+    // Predefined cubes and spheres
+    for(let i=0;i<5;i++){
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(),
+            new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0x330000})
+        );
+        cube.position.x = Math.random()*4-2;
+        cube.position.y = Math.random()*4-2;
+        scene.add(cube);
+        cubes.push(cube);
 
-</main>
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5,16,16),
+            new THREE.MeshStandardMaterial({color: 0x00ff00, emissive: 0x003300})
+        );
+        sphere.position.x = Math.random()*4-2;
+        sphere.position.y = Math.random()*4-2;
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
 
-<footer>
-  © 1973 Aperture Science Laboratories, Inc. All rights reserved.
-</footer>
+    animate();
+}
+
+// Simulate broken code
+function buggyFunction() {
+    try {
+        nonexistentFunctionCall(); // this will throw an error
+    } catch(e) {
+        appendConsole("Emily's chaos broke something: " + e.message);
+    }
+}
+
+// FPS counter
+function updateFPS() {
+    let now = performance.now();
+    let fps = Math.round(1000 / (now - lastFrame));
+    lastFrame = now;
+    fpsDisplay.textContent = "FPS: " + fps;
+}
+
+// Animate cubes and spheres
+function animate() {
+    if(paused) return;
+    requestAnimationFrame(animate);
+    updateFPS();
+
+    cubes.forEach((c,i)=> {
+        cube = cubes[i];
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+        cube.position.y += Math.sin(performance.now()*0.001+i*0.5)*0.001; // small oscillation
+    });
+
+    spheres.forEach((s,i)=> {
+        sphere = spheres[i];
+        sphere.rotation.y += 0.02;
+        sphere.position.x += Math.sin(performance.now()*0.001+i*0.5)*0.001;
+    });
+
+    buggyFunction(); // intentionally broken call
+
+    renderer.render(scene, camera);
+}
+
+// Console functions
+function appendConsole(text){
+    let p = document.createElement('p');
+    p.textContent = text;
+    consoleDiv.appendChild(p);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+}
+
+input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+        let cmd = input.value.trim();
+        input.value = '';
+        appendConsole("> " + cmd);
+        if(cmd === "sv_cheats 1"){
+            sv_cheats = 1;
+            appendConsole("Server char sv_cheats changed to 1");
+        } else if(cmd === "sv_cheats 0"){
+            sv_cheats = 0;
+            appendConsole("Server char sv_cheats changed to 0");
+        } else {
+            appendConsole("Unknown command: " + cmd);
+        }
+    }
+});
+
+// ESC menu toggle
+document.addEventListener('keydown',(e)=>{
+    if(e.key === 'Escape'){
+        paused = !paused;
+        menu.style.display = paused ? "block" : "none";
+        if(!paused) animate();
+    }
+});
+
+// Start button
+document.getElementById('startBtn').addEventListener('click', ()=>{
+    initScene();
+    document.getElementById('startBtn').disabled = true;
+    appendConsole("Rendering test started. Emily is probably in trouble...");
+});
+</script>
 
 </body>
 </html>

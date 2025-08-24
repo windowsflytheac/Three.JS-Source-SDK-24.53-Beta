@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Three.JS-Source-SDK-24.53-Beta</title>
+<title>Three.JS-Source-SDK-24.53-Beta Chaos Edition</title>
 <style>
-  body { margin:0; overflow:hidden; background:#0b0b0b; color:#e0e0e0; font-family:monospace; }
-  #overlay { position:absolute; top:10px; left:10px; z-index:10; }
-  #fps { margin-bottom:5px; }
-  #console { background:rgba(0,0,0,0.7); padding:5px; display:none; max-height:200px; overflow-y:auto; }
-  #input { width:100%; box-sizing:border-box; background:#111; color:#fff; border:none; padding:5px; }
-  #menu { display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(20,20,20,0.95); z-index:20; color:#f0c674; text-align:center; padding-top:100px; font-size:2em; }
-  #tv { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; z-index:15; }
-  button { padding:10px 20px; font-size:1em; cursor:pointer; margin-top:5px; }
+body{margin:0;overflow:hidden;background:#0b0b0b;color:#e0e0e0;font-family:monospace;}
+#overlay{position:absolute;top:10px;left:10px;z-index:10;}
+#fps{margin-bottom:5px;}
+#console{background:rgba(0,0,0,0.7);padding:5px;display:none;max-height:200px;overflow-y:auto;}
+#input{width:100%;box-sizing:border-box;background:#111;color:#fff;border:none;padding:5px;}
+#menu{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(20,20,20,0.95);z-index:20;color:#f0c674;text-align:center;padding-top:100px;font-size:2em;}
+#tv{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;z-index:15;}
+button{padding:10px 20px;font-size:1em;cursor:pointer;margin-top:5px;}
 </style>
 </head>
 <body>
@@ -24,12 +24,13 @@
 </div>
 <div id="menu">PAUSED - PRESS ESC TO RESUME</div>
 <canvas id="tv"></canvas>
+<audio id="staticAudio" loop autoplay src="https://www.soundjay.com/mechanical/sounds/static-01.mp3"></audio>
 
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
 
-let scene, camera, renderer;
-let cubes=[], spheres=[];
+let scene,camera,renderer;
+let cubes=[],spheres=[];
 let lastFrame=performance.now();
 let fpsDisplay=document.getElementById('fps');
 let consoleDiv=document.getElementById('console');
@@ -37,29 +38,35 @@ let input=document.getElementById('input');
 let sv_cheats=0;
 let menu=document.getElementById('menu');
 let paused=false;
-
-// TV snow overlay
-const tvCanvas=document.getElementById('tv');
-const tvCtx=tvCanvas.getContext('2d');
+let tvCanvas=document.getElementById('tv');
+let tvCtx=tvCanvas.getContext('2d');
 tvCanvas.width=window.innerWidth;
 tvCanvas.height=window.innerHeight;
 
-// Generate snow pixels
 function drawTVSnow(){
+    tvCtx.clearRect(0,0,tvCanvas.width,tvCanvas.height);
+    // Snow
     tvCtx.fillStyle='rgba(255,255,255,0.08)';
-    for(let i=0;i<500;i++){
+    for(let i=0;i<800;i++){
         let x=Math.random()*tvCanvas.width;
         let y=Math.random()*tvCanvas.height;
         tvCtx.fillRect(x,y,1,1);
     }
+    // Scanlines
+    tvCtx.strokeStyle='rgba(255,255,255,0.02)';
+    for(let y=0;y<tvCanvas.height;y+=2){
+        tvCtx.beginPath();
+        tvCtx.moveTo(0,y);
+        tvCtx.lineTo(tvCanvas.width,y);
+        tvCtx.stroke();
+    }
 }
 
-// Basic Three.js setup
 function initScene(){
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,100);
+    scene=new THREE.Scene();
+    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,100);
     camera.position.z=5;
-    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer=new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(window.innerWidth,window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -88,7 +95,6 @@ function initScene(){
     animate();
 }
 
-// Buggy function to simulate chaos
 function buggyFunction(){
     try{ nonexistentFunctionCall(); } 
     catch(e){ appendConsole("Emily's chaos broke something: "+e.message); }
@@ -106,25 +112,31 @@ function animate(){
     requestAnimationFrame(animate);
     updateFPS();
 
-    // Animate cubes/spheres with glitchy random jitters
+    // Glitch effect on cubes/spheres
     cubes.forEach((c,i)=>{
-        c.rotation.x+=0.01+Math.random()*0.01;
-        c.rotation.y+=0.01+Math.random()*0.01;
-        c.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
-        c.position.y+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
+        c.rotation.x+=0.01+Math.random()*0.02;
+        c.rotation.y+=0.01+Math.random()*0.02;
+        c.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
+        c.position.y+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
+        c.material.emissiveIntensity=1+Math.random()*0.5;
+    });
+    spheres.forEach((s,i)=>{
+        s.rotation.y+=0.02+Math.random()*0.02;
+        s.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
+        s.position.y+=Math.cos(performance.now()*0.001+i*0.5)*0.003*(Math.random()*2);
+        s.material.emissiveIntensity=1+Math.random()*0.5;
     });
 
-    spheres.forEach((s,i)=>{
-        s.rotation.y+=0.02+Math.random()*0.01;
-        s.position.x+=Math.sin(performance.now()*0.001+i*0.5)*0.002;
-        s.position.y+=Math.cos(performance.now()*0.001+i*0.5)*0.002;
-    });
+    // Camera shake
+    camera.position.x=Math.sin(performance.now()*0.002)*0.05;
+    camera.position.y=Math.sin(performance.now()*0.0025)*0.05;
 
     buggyFunction();
     renderer.render(scene,camera);
-    drawTVSnow(); // overlay snow
+    drawTVSnow();
 }
 
+// Console logging
 function appendConsole(text){
     let p=document.createElement('p');
     p.textContent=text;
@@ -132,6 +144,7 @@ function appendConsole(text){
     consoleDiv.scrollTop=consoleDiv.scrollHeight;
 }
 
+// Console input
 input.addEventListener('keydown',(e)=>{
     if(e.key==='Enter'){
         let cmd=input.value.trim(); input.value='';
@@ -142,6 +155,7 @@ input.addEventListener('keydown',(e)=>{
     }
 });
 
+// ESC Menu toggle
 document.addEventListener('keydown',(e)=>{
     if(e.key==='Escape'){
         paused=!paused;

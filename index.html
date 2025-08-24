@@ -2,215 +2,181 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Three.JS: Source Sandbox Hub</title>
+<title>Three.JS: Source 24.53 Beta</title>
 <style>
-  body { margin:0; overflow:hidden; background:#111; color:#0f0; font-family:monospace;}
-  #hud {position:absolute;top:5px;left:5px;z-index:100;color:#0f0;}
-  #console {position:absolute;bottom:0;left:0;width:100%;height:120px;background:rgba(0,0,0,0.7);overflow:auto;padding:5px;box-sizing:border-box;}
-  #menu {display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;padding:20px;border:2px solid #0f0;}
-  #selector {position:absolute;top:5px;right:5px;z-index:100;}
-  button {margin:2px;padding:5px;background:#0f0;color:#111;border:none;cursor:pointer;}
+body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
+#menu { position:absolute; top:0; left:0; right:0; text-align:center; color:white; background:rgba(0,0,0,0.7); display:none; padding:10px; z-index:1000; }
+#fps { position:absolute; top:0; right:0; color:white; padding:5px; z-index:1000; font-family:monospace; }
+#subtitle { position:absolute; bottom:10%; width:100%; text-align:center; color:#ff0; font-size:24px; font-family:monospace; text-shadow:1px 1px 2px #000; }
+#selector { position:absolute; top:50px; left:10px; color:white; z-index:1000; }
+button { display:block; margin:5px 0; }
 </style>
 </head>
 <body>
-
-<div id="hud">FPS: <span id="fps">0</span></div>
-<div id="console"></div>
 <div id="menu">PAUSED - PRESS ESC TO RESUME</div>
+<div id="fps">FPS: 0</div>
+<div id="subtitle"></div>
 <div id="selector">
-  Three.js: Source 24.53 Beta<br>
   <button onclick="switchScene('renderTest')">Rendering Test</button>
-  <button onclick="switchScene('glados')">Blocky GLaDOS</button>
-  <button onclick="switchScene('tvGlitch')">TV Glitch</button>
-  <button onclick="switchScene('chaos')">Chaos Mode</button>
-  <button onclick="switchScene('car')">Car Mode</button>
-  <button onclick="switchScene('gmodPlaceholders')">GMod Placeholders</button>
+  <button onclick="switchScene('seriousRoom')">Serious Room</button>
 </div>
 
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
 
-// === Global Variables ===
-let renderer, camera, scene, currentScene;
-let fpsCounter = document.getElementById('fps');
-let consoleDiv = document.getElementById('console');
-let menu = document.getElementById('menu');
-let clock = new THREE.Clock();
-let scenes = {};
-let heldObject = null;
-let keys = {};
-let playerVelocity = new THREE.Vector3();
-let canJump = false;
-let playerHeight = 1.8;
-
-// === Console ===
-function logConsole(msg){
-    consoleDiv.innerHTML += msg+'<br>';
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-}
-
-// === HUD Subtitles ===
-let subtitleTimeout;
-function showSubtitle(msg){
-    clearTimeout(subtitleTimeout);
-    let subtitleDiv = document.getElementById('subtitle');
-    if(!subtitleDiv){
-        subtitleDiv = document.createElement('div');
-        subtitleDiv.id = 'subtitle';
-        subtitleDiv.style.position = 'absolute';
-        subtitleDiv.style.bottom = '50px';
-        subtitleDiv.style.width = '100%';
-        subtitleDiv.style.textAlign = 'center';
-        subtitleDiv.style.color = '#fff';
-        subtitleDiv.style.fontFamily = 'monospace';
-        subtitleDiv.style.fontSize = '20px';
-        subtitleDiv.style.textShadow = '2px 2px 5px #000';
-        document.body.appendChild(subtitleDiv);
-    }
-    subtitleDiv.innerText = msg;
-    subtitleTimeout = setTimeout(()=>{subtitleDiv.innerText='';}, 1500);
-}
-
-// === Renderer ===
-renderer = new THREE.WebGLRenderer({antialias:true});
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// === Player Setup ===
-camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.y = playerHeight;
-camera.position.z = 5;
+const clock = new THREE.Clock();
+const menu = document.getElementById('menu');
+const fpsCounter = document.getElementById('fps');
+const subtitle = document.getElementById('subtitle');
 
-// === Basic Scene (Skybox + Floor) ===
-scene = new THREE.Scene();
-const skyGeo = new THREE.BoxGeometry(500,500,500);
-const skyMat = [
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-  new THREE.MeshBasicMaterial({color:0x87ceeb, side:THREE.BackSide}),
-];
-scene.add(new THREE.Mesh(skyGeo, skyMat));
+let keys = {};
+let heldObject = null;
 
-const floorGeo = new THREE.PlaneGeometry(500,500);
-const floorMat = new THREE.MeshStandardMaterial({color:0x444444});
-const floor = new THREE.Mesh(floorGeo,floorMat);
-floor.rotation.x = -Math.PI/2;
-floor.receiveShadow = true;
-scene.add(floor);
-
-// === Lights ===
-const light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(5,10,7);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
-
-// === Scenes/Mods Placeholders ===
-scenes.renderTest = function(){
-    let cubeGeo = new THREE.BoxGeometry();
-    let cubeMat = new THREE.MeshStandardMaterial({color:0xff00ff, emissive:0x550055});
-    for(let i=0;i<10;i++){
-        let c = new THREE.Mesh(cubeGeo,cubeMat);
-        c.position.set(Math.random()*10-5,1,Math.random()*10-5);
-        c.userData.pickable = true;
-        scene.add(c);
-    }
-    logConsole("Rendering Test Started. Emily is probably in trouble...");
-};
-
-// === Switch Scenes ===
-function switchScene(name){
-    // Clear current scene (except floor/light)
-    scene.children = scene.children.filter(c=>c===floor||c===light||c.type==='AmbientLight');
-    if(scenes[name]) scenes[name]();
-    currentScene = name;
-}
-
-// === Input Handling ===
 document.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
 
-document.addEventListener('keydown', e=>{
-    if(e.key === 'e'){
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera({x:0,y:0}, camera);
-        const intersects = raycaster.intersectObjects(scene.children,true).filter(o=>o.object.userData.pickable);
-        if(intersects.length>0){ heldObject = intersects[0].object; logConsole(`Picked up: ${heldObject.name}`);}
-        else showSubtitle("Can't Use");
-    }
-    if(e.key === 'q'){
-        let spawnMenu = document.getElementById('spawnMenu');
-        if(!spawnMenu){
-            spawnMenu = document.createElement('div');
-            spawnMenu.id='spawnMenu';
-            spawnMenu.style.position='absolute';
-            spawnMenu.style.top='100px';
-            spawnMenu.style.left='50%';
-            spawnMenu.style.transform='translateX(-50%)';
-            spawnMenu.style.background='rgba(0,0,0,0.8)';
-            spawnMenu.style.padding='10px';
-            spawnMenu.style.border='2px solid #0f0';
-            document.body.appendChild(spawnMenu);
+function logConsole(text){ console.log(text); }
+function showSubtitle(text){ subtitle.innerText=text; setTimeout(()=>{subtitle.innerText='';},1500); }
 
-            const spawnItems = [
-                {name:'Cube', geometry:new THREE.BoxGeometry(), material:new THREE.MeshStandardMaterial({color:0xff0})},
-                {name:'Sphere', geometry:new THREE.SphereGeometry(0.5,16,16), material:new THREE.MeshStandardMaterial({color:0x0ff})}
-            ];
-            spawnItems.forEach(item=>{
-                const btn = document.createElement('button');
-                btn.innerText=item.name;
-                btn.onclick=()=>{
-                    const mesh = new THREE.Mesh(item.geometry,item.material);
-                    mesh.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(3));
-                    mesh.userData.pickable=true;
-                    mesh.name=item.name;
-                    scene.add(mesh);
-                    logConsole(`Spawned: ${mesh.name}`);
-                };
-                spawnMenu.appendChild(btn);
-            });
-        } else spawnMenu.style.display = spawnMenu.style.display==='none'?'block':'none';
-    }
-    if(e.key==='Escape') menu.style.display = menu.style.display==='none'?'block':'none';
-});
+const scenes = {};
 
-// === Animate Loop ===
+// --- Rendering Test Scene ---
+scenes.renderTest = function(){
+    scene.children = [];
+    const ambient = new THREE.AmbientLight(0x333333);
+    scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5,10,7);
+    scene.add(dirLight);
+
+    // Placeholder cubes/spheres/glow moving
+    for(let i=0;i<10;i++){
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:Math.random()*0xffffff, emissive:Math.random()*0xffffff, emissiveIntensity:0.5}));
+        cube.position.set((Math.random()-0.5)*10,0.5,(Math.random()-0.5)*10);
+        cube.userData = {velocity:new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5)};
+        scene.add(cube);
+    }
+    for(let i=0;i<5;i++){
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5,16,16), new THREE.MeshStandardMaterial({color:Math.random()*0xffffff, emissive:Math.random()*0xffffff, emissiveIntensity:0.5}));
+        sphere.position.set((Math.random()-0.5)*10,0.5,(Math.random()-0.5)*10);
+        scene.add(sphere);
+    }
+
+    // Blocky GLaDOS placeholder
+    const glados = new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color:0xffff00, emissive:0xffff00, emissiveIntensity:0.8}));
+    glados.position.set(0,1,0);
+    scene.add(glados);
+
+    // TV glitch plane
+    const tvGeo = new THREE.PlaneGeometry(5,3);
+    const tvMat = new THREE.MeshBasicMaterial({color:0xffffff});
+    const tv = new THREE.Mesh(tvGeo, tvMat);
+    tv.position.set(0,1.5,-4);
+    scene.add(tv);
+
+    logConsole("Rendering Test loaded. Emily is probably in trouble...");
+};
+
+// --- Serious Room Scene ---
+scenes.seriousRoom = function() {
+    scene.children = [];
+    const floorSR = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshStandardMaterial({color:0x222222}));
+    floorSR.rotation.x = -Math.PI/2; scene.add(floorSR);
+
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(6,3,6), new THREE.MeshStandardMaterial({color:0x111111, side:THREE.BackSide}));
+    walls.position.y = 1.5; scene.add(walls);
+
+    const spot = new THREE.SpotLight(0xffffff,1.5);
+    spot.position.set(0,3,0); spot.angle=Math.PI/6; spot.penumbra=0.3; scene.add(spot);
+
+    const amb = new THREE.AmbientLight(0x222222); scene.add(amb);
+
+    // Placeholder cube
+    const placeholderCube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:0xff0000}));
+    placeholderCube.position.set(0,0.5,0); scene.add(placeholderCube);
+
+    logConsole("Serious Room loaded. Everything is extremely serious…");
+};
+
+// Scene switcher
+function switchScene(name){ if(scenes[name]) scenes[name](); }
+
+// Floor
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshStandardMaterial({color:0x444444}));
+floor.rotation.x=-Math.PI/2; scene.add(floor);
+
+// Camera
+camera.position.set(0,1.6,5);
+
+// Animate
 function animate(){
     requestAnimationFrame(animate);
-    let delta = clock.getDelta();
+    const dt = clock.getDelta();
+    fpsCounter.innerText = "FPS: "+(1/dt).toFixed(0);
 
-    // FPS
-    fpsCounter.innerText = Math.floor(1/delta);
-
-    // Player Movement
+    // Movement
     const speed = 5;
-    if(keys['w']) camera.position.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(speed*delta));
-    if(keys['s']) camera.position.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-speed*delta));
-    if(keys['a']) camera.position.add(new THREE.Vector3().crossVectors(camera.up, camera.getWorldDirection(new THREE.Vector3())).normalize().multiplyScalar(speed*delta));
-    if(keys['d']) camera.position.add(new THREE.Vector3().crossVectors(camera.getWorldDirection(new THREE.Vector3()), camera.up).normalize().multiplyScalar(speed*delta));
-    if(keys[' ']){ // jump
-        if(canJump){ playerVelocity.y=5; canJump=false;}
-    }
+    let forward=(keys['w']?-1:0)+(keys['s']?1:0);
+    let right=(keys['a']?-1:0)+(keys['d']?1:0);
+    camera.position.y+=keys[' ']?5*dt:0;
 
-    // Gravity
-    playerVelocity.y -= 9.8*delta;
-    camera.position.y += playerVelocity.y*delta;
-    if(camera.position.y<playerHeight){ camera.position.y=playerHeight; playerVelocity.y=0; canJump=true;}
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y=0; dir.normalize();
+    camera.position.add(dir.clone().multiplyScalar(forward*speed*dt));
+    const rightDir = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
+    camera.position.add(rightDir.multiplyScalar(right*speed*dt));
 
-    // Held object follow
+    // Update cubes movement
+    scene.traverse(obj=>{
+        if(obj.userData.velocity){
+            obj.position.add(obj.userData.velocity.clone().multiplyScalar(dt));
+        }
+    });
+
+    // Update held object
     if(heldObject){
         const holdPos = camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(2));
-        heldObject.position.lerp(holdPos, 0.2);
+        heldObject.position.lerp(holdPos,0.2);
     }
 
     renderer.render(scene,camera);
 }
-
 animate();
-switchScene('renderTest'); // Start with renderTest
 
+// Interactions
+document.addEventListener('keydown', e=>{
+    if(e.key==='e'){
+        if(heldObject){
+            showSubtitle("Dropped object");
+            heldObject = null;
+        }else{
+            // pick nearest cube
+            let nearest=null,dist=5;
+            scene.traverse(obj=>{
+                if(obj instanceof THREE.Mesh && obj.geometry instanceof THREE.BoxGeometry){
+                    const d=obj.position.distanceTo(camera.position);
+                    if(d<dist){ nearest=obj; dist=d; }
+                }
+            });
+            if(nearest){ heldObject=nearest; showSubtitle("Picked up placeholder object"); }
+            else showSubtitle("Can't Use");
+        }
+    }
+    if(e.key==='q') showSubtitle("Spawn Menu Opened (placeholder)");
+    if(e.key==='Escape') menu.style.display = menu.style.display==='none'?'block':'none';
+    if(e.key==='1'){ logConsole("Server char sv_cheats changed to 1"); showSubtitle("sv_cheats set to 1"); }
+    if(e.key==='0'){ logConsole("Server char sv_cheats changed to 0"); showSubtitle("sv_cheats set to 0"); }
+});
+
+// Start with Rendering Test
+switchScene('renderTest');
 </script>
 </body>
 </html>
